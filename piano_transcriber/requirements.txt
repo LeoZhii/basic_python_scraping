@@ -1,0 +1,13 @@
+# Install torch first (CPU wheels are fine; a GPU only speeds up the model step):
+#   pip install torch torchaudio
+transkun>=2.0.1      # piano transcription model (pretrained weights ship with the package)
+music21>=9
+verovio>=4
+cairosvg>=2.7
+pypdf>=4
+pretty_midi
+mido
+numpy
+scipy
+mir_eval            # evaluation only
+pytest              # tests only

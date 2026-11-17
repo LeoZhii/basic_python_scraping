@@ -35,7 +35,11 @@ def main(argv=None):
     ap.add_argument('--pickup', type=float, default=0,
                     help='number of tatums (eighths for x/8, quarters... see README) before the first downbeat')
     ap.add_argument('--grid', default='1,0.5,0.25', help='allowed subdivisions of the tatum, coarsest first')
-    ap.add_argument('--title'); ap.add_argument('--composer'); ap.add_argument('--arranger')
+    ap.add_argument('--title', help='score title (default: input file name)')
+    ap.add_argument('--subtitle', help='line under the title, e.g. an English title')
+    ap.add_argument('--composer', help='printed top right, e.g. the band or composer')
+    ap.add_argument('--arranger', help='printed under the composer as "Arr. <name>"')
+    ap.add_argument('--paper', default='a4', choices=['a4', 'letter'], help='paper size for the PDF')
     ap.add_argument('--no-pdf', action='store_true')
     a = ap.parse_args(argv)
 
@@ -83,13 +87,15 @@ def main(argv=None):
 
     # 4. score
     tempo_number = a.tempo or round(60.0 / period * tatum_ql / UNIT_QL[a.tempo_unit])
+    title = a.title or stem
     sc = build_score(notes, k, spell, a.time_sig, tempo_number, UNIT_QL[a.tempo_unit],
-                     a.title or stem, a.composer, a.arranger)
+                     title, a.composer, a.arranger, a.subtitle, a.paper)
     xml = out / f'{stem}.musicxml'
     export(sc, xml, out / f'{stem}.mid')
     pages = None
     if not a.no_pdf:
-        pages = render(xml, out / f'{stem}.pdf', png_prefix=str(out / f'{stem}_page'))
+        pages = render(xml, out / f'{stem}.pdf', png_prefix=str(out / f'{stem}_page'), paper=a.paper,
+                       title=title, subtitle=a.subtitle, composer=a.composer, arranger=a.arranger)
 
     report = {
         'notes': len(notes), 'pedals': len(pedals), 'key': str(k),

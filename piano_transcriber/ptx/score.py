@@ -3,7 +3,11 @@ from fractions import Fraction
 from itertools import groupby
 
 from music21 import (stream, note, chord, meter, key as m21key, clef, tempo, duration,
-                     metadata, layout, instrument, expressions)
+                     metadata, layout, expressions, text)
+
+# MusicXML page sizes in tenths, with the default scaling of 7 mm per 40 tenths
+TENTHS_PER_MM = 40 / 7
+PAPER_MM = {'a4': (210, 297), 'letter': (215.9, 279.4)}
 
 
 def _ql(eighths):
@@ -38,8 +42,35 @@ def _hand_part(notes, hand, spell, measure_eighths, total_eighths):
     return part
 
 
+def _credits(sc, paper, title, subtitle, composer, arranger):
+    """Page size plus title/credit text boxes, so MuseScore and other notation programs
+    show the same title block as the PDF."""
+    w_mm, h_mm = PAPER_MM[paper]
+    w, h = round(w_mm * TENTHS_PER_MM), round(h_mm * TENTHS_PER_MM)
+    margin = round(15 * TENTHS_PER_MM)
+    sc.insert(0, layout.ScoreLayout(scalingMillimeters=7, scalingTenths=40,
+                                    pageLayout=layout.PageLayout(pageHeight=h, pageWidth=w,
+                                                                 leftMargin=margin, rightMargin=margin,
+                                                                 topMargin=margin, bottomMargin=margin)))
+    boxes = []
+    if title:
+        boxes.append((title, w / 2, h - 80, 'center', 24))
+    if subtitle:
+        boxes.append((subtitle, w / 2, h - 125, 'center', 14))
+    y = h - 165
+    for line in (composer, ('Arr. ' + arranger) if arranger and not arranger.lower().startswith('arr') else arranger):
+        if line:
+            boxes.append((line, w - margin, y, 'right', 10)); y -= 20
+    for content, x, y, justify, size in boxes:
+        tb = text.TextBox(content, x, y)
+        tb.style.justify = justify
+        tb.style.fontSize = size
+        tb.page = 1
+        sc.insert(0, tb)
+
+
 def build_score(notes, k, spell, time_sig='6/8', tempo_bpm=200, tempo_unit_ql=0.5,
-                title=None, composer=None, arranger=None):
+                title=None, composer=None, arranger=None, subtitle=None, paper='a4'):
     ts = meter.TimeSignature(time_sig)
     measure_eighths = ts.barDuration.quarterLength * 2
     end = max(n.onset_q + n.dur_q for n in notes)
@@ -49,6 +80,8 @@ def build_score(notes, k, spell, time_sig='6/8', tempo_bpm=200, tempo_unit_ql=0.
     sc = stream.Score()
     md = metadata.Metadata()
     md.title = title or ''
+    if subtitle:
+        md.movementName = subtitle
     if composer:
         md.composer = composer
     if arranger:
@@ -68,6 +101,7 @@ def build_score(notes, k, spell, time_sig='6/8', tempo_bpm=200, tempo_unit_ql=0.
         sc.insert(0, p)
     sc.insert(0, layout.StaffGroup([sc.parts[0], sc.parts[1]], symbol='brace', barTogether=True))
     sc = sc.makeNotation()
+    _credits(sc, paper, title, subtitle, composer, arranger)
     return sc
 
 
